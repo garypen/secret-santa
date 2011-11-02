@@ -1,0 +1,44 @@
+# secret-santa
+
+Given a set of names/email addresses choose giver/receiver combinations
+whilst guaranteeing that there are no directly reciprocal combinations.
+
+The participants are provided in a file with the following format:
+
+<name>:<email address>
+
+The parser is very simple, so don't put in spaces or try to comment out
+lines. Maybe that is an area worth improving...
+
+Each partipant receives an email indicating who they should buy a present
+for.
+
+The -e option is used to send a mail containing all pairings to the
+supplied address. This is so that an (presumably non-participating)
+examiner can ensure that the program is working correctly.
+
+The -o option specifies the mail address to use as the sender of the mail.
+
+The -s option specifies the mail server to be used when sending the mail.
+
+The -t option is used for testing. If this option is supplied, the emails
+are not sent to the designated givers, but are instead sent to the
+supplied address.
+
+## Usage
+
+secret-santa -s --server <email host> -o --originator <email address> \
+  [-e --examiner <email address>] [-t --tester <email address>] <filename>
+
+e.g:
+
+Send mail from the server <server.com> as user <sender@server.com> with a
+verification copy to verifier "verify@verify.com".
+
+secret-santa -s server.com -o sender@server.com -e verify@verify.com data
+
+## License
+
+Copyright (C) 2011 Gary Pennington
+
+Distributed under the Eclipse Public License, the same as Clojure.
