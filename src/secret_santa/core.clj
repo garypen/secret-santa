@@ -62,7 +62,6 @@ does not occur"
       (.setSubject "Supervise request from secret santa")
       (.setMsg @text)
       (.send))))
-;  ))
 
 (defn validate-pairings
   "Take a pair and a set of pairs, reverse the pair and ensure it
