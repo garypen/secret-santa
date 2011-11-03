@@ -77,14 +77,20 @@
     (when (:help options)
       (println banner)
       (System/exit 0))
-    (cond
-     (nil? args) (println banner)
-     :default (let [pairs (pick-pairs (randomize (read-data (first args))))]
-                (println "Dispatching emails...")
-                (when (:examiner options)
-                  (email-examiner (:tester options) (:server options)
-                                  (:originator options) (:examiner options)
-                                  pairs))
-                (doseq [pair pairs]
-                  (email-giver (:tester options) (:server options)
-                               (:originator options) pair))))))
+    (when (empty? args)
+      (println banner)
+      (System/exit 2))
+    ; This check is required because of the way tools.cli processes options
+    ; If that issue is resolve, this check can go
+    (when (or (= (:originator options) "") (= (:server options) ""))
+      (println banner)
+      (System/exit 2))
+    (let [pairs (pick-pairs (randomize (read-data (first args))))]
+      (println "Dispatching emails...")
+      (when (:examiner options)
+        (email-examiner (:tester options) (:server options)
+                        (:originator options) (:examiner options)
+                        pairs))
+      (doseq [pair pairs]
+        (email-giver (:tester options) (:server options)
+                     (:originator options) pair)))))
