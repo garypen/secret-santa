@@ -6,32 +6,27 @@
   (:import org.apache.commons.mail.SimpleEmail)
   (:gen-class))
 
-(def valid-data (atom true))
-
-(defn pick-receiver
-  "Pick a random receiver from a sequence whilst ensuring duplication
-does not occur"
-  [giver receivers]
-  (rand-nth (seq (set/difference receivers [giver]))))
-
-(defn pick-giver
-  "Pick a random giver from a sequence"
-  [givers]
-  (rand-nth (seq givers)))
-
-(defn pick-pairs
-  "Pick a set of pairs consisting of a giver and a receiver"
+(defn- randomize
+  "Randomize the sequence of a supplied vector."
   [users]
-  (loop [pairs #{} givers users receivers users]
-    (let [giver (pick-giver givers)
-          receiver (pick-receiver giver receivers)]
-      (if (empty? givers)
-        pairs
-        (recur (into pairs #{[giver receiver]})
-               (set/difference givers [giver])
-               (set/difference receivers [receiver]))))))
+  (loop [participants [] remaining users]
+    (if (empty? remaining)
+      participants
+      (let [chosen (rand-nth (seq remaining))]
+        (recur (conj participants chosen)
+               (set/difference remaining #{chosen}))))))
 
-(defn email-giver
+(defn- pick-pairs
+  "Pick pairs consisting of a giver and a receiver"
+  [users]
+  (let [first (first users) last (last users)]
+    (loop [pairs [[last first]] users users]
+      (let [[giver receiver] (take 2 users)]
+        (if (or (= giver last) (= receiver last))
+          (conj pairs [giver receiver])
+          (recur (conj pairs [giver receiver]) (rest users)))))))
+
+(defn- email-giver
   "Print a pair consisting of a giver and a receiver"
   [tester server originator pair]
   (let [[giver email] (string/split (nth pair 0) #":")
@@ -47,7 +42,7 @@ does not occur"
                     ")\nThanks for using Secret Santa."))
       (.send))))
 
-(defn email-examiner
+(defn- email-examiner
   "Email the pairings to a designated examiner"
   [tester server originator examiner pairs]
   (let [text (ref "Hi examiner,\n\nSecret Santa has chosen the following pairings, please ensure they are correct and let the sender of this message know if you think there is a mistake.\n\n") examiner (if (nil? tester) examiner tester)]
@@ -63,18 +58,8 @@ does not occur"
       (.setMsg @text)
       (.send))))
 
-(defn validate-pairings
-  "Take a pair and a set of pairs, reverse the pair and ensure it
-  isn't present in the set of pairs"
-  [pair pairs]
-  (if (nil? (nth pair 1))
-    (reset! valid-data false)
-    (if (set/subset? #{(reverse pair)} pairs)
-      (reset! valid-data false))))
-
-
-(defn read-data
-  "Read a list of people to choose between. Return a sequence of folks."
+(defn- read-data
+  "Read a list of people to choose between. Return a set of users (which has the beneficial side-effect of eliminating duplicates in the input)."
   [file-name]
   (println (str "Processing: " file-name))
   (with-open [in-file (io/reader file-name)]
@@ -86,37 +71,20 @@ does not occur"
   (let [[options args banner] (cli args
                                    ["-e" "--examiner" "Email validator"]
                                    ["-h" "--help" "Display help" :default false :flag true]
-                                   ["-o" "--originator" "The originator" :default ""]
-                                   ["-s" "--server" "Email server" :default ""]
+                                   ["-o" "--originator" "The originator" :default "" :required true]
+                                   ["-s" "--server" "Email server" :default "" :required true]
                                    ["-t" "--tester" "Testing address"])]
     (when (:help options)
       (println banner)
       (System/exit 0))
-    (when (.equals (:originator options) "")
-      (println "An originator and a server are required (supercedes information below).")
-      (println banner)
-      (System/exit 2))
-    (when (.equals (:server options) "")
-      (println "An originator and a server are required (supercedes information below).")
-      (println banner)
-      (System/exit 2))
     (cond
      (nil? args) (println banner)
-     :default (let [[one] args data (read-data one)]
-                (loop [pairs (pick-pairs data)]
-                  (println "Searching for good combinations...")
-                  (reset! valid-data true)
-                  (doseq [pair pairs]
-                    (validate-pairings pair pairs))
-                  (if (true? @valid-data)
-                    (do
-                      (println "Found a good solution. Dispatching emails.")
-                      (when (:examiner options)
-                        (email-examiner (:tester options) (:server options)
-                          (:originator options) (:examiner options) pairs))
-                      (doseq [pair pairs]
-                        (email-giver (:tester options) (:server options)
-                          (:originator options) pair)))
-                    (do
-                      (println "Discarding invalid solution: " (str pairs))
-                      (recur (pick-pairs data)))))))))
+     :default (let [pairs (pick-pairs (randomize (read-data (first args))))]
+                (println "Dispatching emails...")
+                (when (:examiner options)
+                  (email-examiner (:tester options) (:server options)
+                                  (:originator options) (:examiner options)
+                                  pairs))
+                (doseq [pair pairs]
+                  (email-giver (:tester options) (:server options)
+                               (:originator options) pair))))))
