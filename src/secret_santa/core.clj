@@ -68,7 +68,7 @@
 
 (defn -main
   [& args]
-  (let [[options args banner] (cli args
+  (let [[options args banner] (cli (vec args)
                                    ["-e" "--examiner" "Email validator"]
                                    ["-h" "--help" "Display help" :default false :flag true]
                                    ["-o" "--originator" "The originator" :default "" :required true]
