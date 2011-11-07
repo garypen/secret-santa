@@ -1,30 +1,17 @@
 (ns secret-santa.core
-  (:require [clojure.java.io :as io])
-  (:require [clojure.set :as set])
-  (:require [clojure.string :as string])
+  (:require [clojure.java.io :as io]
+            [clojure.string :as string])
   (:use [clojure.tools.cli])
   (:import org.apache.commons.mail.SimpleEmail)
   (:gen-class))
 
-(defn- randomize
-  "Randomize the sequence of a supplied vector."
-  [users]
-  (loop [participants [] remaining users]
-    (if (empty? remaining)
-      participants
-      (let [chosen (rand-nth (seq remaining))]
-        (recur (conj participants chosen)
-               (set/difference remaining #{chosen}))))))
-
 (defn- pick-pairs
   "Pick pairs consisting of a giver and a receiver"
   [users]
-  (let [first (first users) last (last users)]
-    (loop [pairs [[last first]] users users]
-      (let [[giver receiver] (take 2 users)]
-        (if (or (= giver last) (= receiver last))
-          (conj pairs [giver receiver])
-          (recur (conj pairs [giver receiver]) (rest users)))))))
+  (->> users
+    cycle
+    (take (+ 1 (count users)))
+    (partition 2 1)))
 
 (defn- email-giver
   "Print a pair consisting of a giver and a receiver"
@@ -85,7 +72,7 @@
     (when (or (= (:originator options) "") (= (:server options) ""))
       (println banner)
       (System/exit 2))
-    (let [pairs (pick-pairs (randomize (read-data (first args))))]
+    (let [pairs (pick-pairs (shuffle (read-data (first args))))]
       (println "Dispatching emails...")
       (when (:examiner options)
         (email-examiner (:tester options) (:server options)
